@@ -1,0 +1,22 @@
+{
+  "name": "school-management-system",
+  "private": true,
+  "description": "Nursery & lower-primary school management system (Express + Prisma + Next.js)",
+  "scripts": {
+    "install:all": "npm --prefix backend install && npm --prefix frontend install",
+    "db:start": "scripts/dev-mysql.sh start",
+    "db:stop": "scripts/dev-mysql.sh stop",
+    "deploy": "scripts/deploy.sh",
+    "setup:db": "scripts/setup-system-db.sh",
+    "backup": "scripts/backup.sh",
+    "setup": "npm --prefix backend run prisma:deploy && npm --prefix backend run seed",
+    "dev:api": "npm --prefix backend run dev",
+    "dev:web": "npm --prefix frontend run dev",
+    "start:api": "npm --prefix backend start",
+    "start:web": "npm --prefix frontend start",
+    "build":"npm --prefix backend run build && npm --prefix frontend run build",
+    "lint": "npm --prefix backend run lint && npm --prefix frontend run lint",
+    "test": "npm --prefix backend test",
+    "i18n:check": "npm --prefix frontend run i18n:check && npm --prefix backend run i18n:check"
+  }
+}

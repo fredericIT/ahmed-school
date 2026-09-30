@@ -1,0 +1,66 @@
+# Full stack: MySQL 8 + Express API + Next.js web app.
+#   cp .env.example .env   # then set real secrets
+#   docker compose up -d --build
+#   docker compose exec backend npm run seed   # optional demo data
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-school_db}
+      MYSQL_USER: ${MYSQL_USER:-school}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-school_pass}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_pass_change_me}
+      TZ: Africa/Kigali
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u${MYSQL_USER:-school}", "-p${MYSQL_PASSWORD:-school_pass}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: mysql://${MYSQL_USER:-school}:${MYSQL_PASSWORD:-school_pass}@mysql:3306/${MYSQL_DATABASE:-school_db}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Set JWT_ACCESS_SECRET in .env}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET in .env}
+      CORS_ORIGIN: ${APP_URL:-http://localhost:3000}
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      TRUST_PROXY: ${TRUST_PROXY:-1}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      # The seed refuses to wipe a production DB unless explicitly forced (demo setups only).
+      SEED_FORCE: ${SEED_FORCE:-true}
+    ports:
+      - "${API_PORT:-4000}:4000"
+    volumes:
+      - uploads:/app/uploads
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        BACKEND_URL: http://backend:4000
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+
+volumes:
+  mysql_data:
+  uploads:

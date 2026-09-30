@@ -1,0 +1,791 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────── Enums ───────────────────────────
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  TEACHER
+}
+
+enum TokenPurpose {
+  PASSWORD_RESET
+  ACTIVATION
+}
+
+enum ClassLevel {
+  NURSERY
+  PRIMARY
+}
+
+enum Grade {
+  BABY
+  MIDDLE
+  TOP
+  P1
+  P2
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum StudentStatus {
+  ACTIVE
+  TRANSFERRED
+  GRADUATED
+  WITHDRAWN
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+  SICK
+}
+
+enum ActivityCategory {
+  SPORTS
+  TRIP
+  CELEBRATION
+  CULTURAL
+  ACADEMIC
+  HEALTH
+  PARENT_MEETING
+  OTHER
+}
+
+enum ActivityStatus {
+  PLANNED
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
+
+enum ItemUnit {
+  PCS
+  BOX
+  KG
+  LITRE
+  PACK
+}
+
+enum ItemCondition {
+  NEW
+  GOOD
+  DAMAGED
+}
+
+enum MovementType {
+  IN
+  OUT
+  ADJUSTMENT
+  DAMAGED
+  RETURN
+}
+
+enum CopyCondition {
+  NEW
+  GOOD
+  FAIR
+  POOR
+  DAMAGED
+}
+
+enum CopyStatus {
+  AVAILABLE
+  BORROWED
+  LOST
+  DAMAGED
+}
+
+enum LoanStatus {
+  BORROWED
+  RETURNED
+  OVERDUE
+  LOST
+}
+
+enum AssessmentType {
+  CLASSWORK
+  HOMEWORK
+  QUIZ
+  TEST
+  PROJECT
+  EXAM
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  RESTORE
+  LOGIN
+  LOGOUT
+  LOGIN_FAILED
+  PASSWORD_CHANGE
+  PASSWORD_RESET
+  STATUS_CHANGE
+  PROMOTE
+  IMPORT
+  STOCK_MOVEMENT
+  ISSUE
+  RETURN
+}
+
+// ─────────────────────────── Users & auth ───────────────────────────
+
+model User {
+  id                  Int       @id @default(autoincrement())
+  firstName           String    @db.VarChar(80)
+  lastName            String    @db.VarChar(80)
+  email               String    @unique @db.VarChar(191)
+  phone               String?   @db.VarChar(30)
+  passwordHash        String    @db.VarChar(191)
+  role                Role      @default(ADMIN)
+  isActive            Boolean   @default(true)
+  avatar              String?   @db.VarChar(255)
+  lastLoginAt         DateTime?
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  // Dashboard widgets this user chose to track; null = show everything (default)
+  dashboardWidgets    Json?
+  // Teachers sign in with this number (e.g. TCH-2026-0001) instead of their email.
+  regNumber           String?   @unique @db.VarChar(30)
+  // Teaching post code used in the reg number (TR = teacher, HT, DOS, TA).
+  post                String?   @db.VarChar(10)
+  // Null until the account holder has set a password (teacher activation).
+  activatedAt         DateTime?
+  // Access tokens issued before this moment are rejected (signs out other sessions on password change).
+  passwordChangedAt   DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  deletedAt           DateTime?
+
+  refreshTokens       RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
+  notifications       Notification[]
+  auditLogs           AuditLog[]
+  attendanceRecorded  Attendance[]         @relation("AttendanceRecordedBy")
+  stockMovements      StockMovement[]
+  loansIssued         BookLoan[]           @relation("LoanIssuedBy")
+  teachingAssignments TeacherAssignment[]
+  assessmentsCreated  Assessment[]
+  marksRecorded       Mark[]
+
+  @@index([role])
+  @@index([deletedAt])
+}
+
+model RefreshToken {
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  tokenHash  String    @unique @db.VarChar(128)
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  replacedBy String?   @db.VarChar(128)
+  ip         String?   @db.VarChar(64)
+  userAgent  String?   @db.VarChar(255)
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        Int          @id @default(autoincrement())
+  userId    Int
+  tokenHash String       @unique @db.VarChar(128)
+  purpose   TokenPurpose @default(PASSWORD_RESET)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ─────────────────────────── School setup ───────────────────────────
+
+model SchoolSettings {
+  id                      Int      @id @default(autoincrement())
+  name                    String   @db.VarChar(150)
+  logo                    String?  @db.VarChar(255)
+  motto                   String?  @db.VarChar(255)
+  address                 String?  @db.VarChar(255)
+  phone                   String?  @db.VarChar(30)
+  email                   String?  @db.VarChar(191)
+  website                 String?  @db.VarChar(191)
+  currency                String   @default("RWF") @db.VarChar(10)
+  timezone                String   @default("Africa/Kigali") @db.VarChar(64)
+  locale                  String   @default("en") @db.VarChar(5)
+  admissionPrefix         String   @default("SCH") @db.VarChar(10)
+  // Attendance rules
+  allowWeekendAttendance  Boolean  @default(false)
+  chronicAbsenceThreshold Int      @default(80) // percent; students below are "chronic absentees"
+  // Library rules
+  loanPeriodDays          Int      @default(7)
+  maxBooksPerStudent      Int      @default(2)
+  overdueFinePerDay       Int      @default(0)
+  lostBookFine            Int      @default(5000)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}
+
+model AcademicYear {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique @db.VarChar(20)
+  startDate DateTime  @db.Date
+  endDate   DateTime  @db.Date
+  isCurrent Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  terms       Term[]
+  enrollments Enrollment[]
+
+  @@index([isCurrent])
+}
+
+model Term {
+  id             Int       @id @default(autoincrement())
+  academicYearId Int
+  name           String    @db.VarChar(30)
+  startDate      DateTime  @db.Date
+  endDate        DateTime  @db.Date
+  isCurrent      Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id])
+  attendances  Attendance[]
+  activities   Activity[]
+  assessments  Assessment[]
+
+  @@unique([academicYearId, name])
+  @@index([isCurrent])
+}
+
+model Holiday {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(120)
+  date      DateTime @unique @db.Date
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Class {
+  id               Int        @id @default(autoincrement())
+  name             String     @db.VarChar(60)
+  level            ClassLevel
+  grade            Grade
+  section          String?    @db.VarChar(5)
+  capacity         Int        @default(30)
+  classTeacherName String?    @db.VarChar(120)
+  room             String?    @db.VarChar(40)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  deletedAt        DateTime?
+  createdById      Int?
+
+  students           Student[]
+  enrollments        Enrollment[]
+  attendances        Attendance[]
+  participations     ActivityParticipant[]
+  teacherAssignments TeacherAssignment[]
+  assessments        Assessment[]
+
+  @@unique([grade, section])
+  @@index([level])
+  @@index([deletedAt])
+}
+
+// ─────────────────────────── Students ───────────────────────────
+
+model Student {
+  id              Int           @id @default(autoincrement())
+  admissionNumber String        @unique @db.VarChar(30)
+  firstName       String        @db.VarChar(80)
+  lastName        String        @db.VarChar(80)
+  gender          Gender
+  dateOfBirth     DateTime      @db.Date
+  photo           String?       @db.VarChar(255)
+  nationality     String?       @default("Rwandan") @db.VarChar(60)
+  address         String?       @db.VarChar(255)
+  bloodGroup      String?       @db.VarChar(5)
+  allergies       String?       @db.Text
+  medicalNotes    String?       @db.Text
+  specialNeeds    String?       @db.Text
+  previousSchool  String?       @db.VarChar(150)
+  admissionDate   DateTime      @db.Date
+  status          StudentStatus @default(ACTIVE)
+  statusReason    String?       @db.VarChar(255)
+  currentClassId  Int?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  deletedAt       DateTime?
+  createdById     Int?
+
+  currentClass   Class?                @relation(fields: [currentClassId], references: [id])
+  guardians      StudentGuardian[]
+  enrollments    Enrollment[]
+  attendances    Attendance[]
+  participations ActivityParticipant[]
+  loans          BookLoan[]
+  marks          Mark[]
+
+  @@index([currentClassId])
+  @@index([status])
+  @@index([lastName, firstName])
+  @@index([deletedAt])
+}
+
+model Guardian {
+  id                 Int       @id @default(autoincrement())
+  fullName           String    @db.VarChar(150)
+  relationship       String    @db.VarChar(40)
+  phone              String    @db.VarChar(30)
+  altPhone           String?   @db.VarChar(30)
+  email              String?   @db.VarChar(191)
+  occupation         String?   @db.VarChar(100)
+  address            String?   @db.VarChar(255)
+  nationalId         String?   @db.VarChar(30)
+  isEmergencyContact Boolean   @default(false)
+  canPickUp          Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  deletedAt          DateTime?
+
+  students StudentGuardian[]
+
+  @@index([phone])
+  @@index([fullName])
+}
+
+model StudentGuardian {
+  studentId  Int
+  guardianId Int
+  isPrimary  Boolean @default(false)
+
+  student  Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  guardian Guardian @relation(fields: [guardianId], references: [id], onDelete: Cascade)
+
+  @@id([studentId, guardianId])
+  @@index([guardianId])
+}
+
+model Enrollment {
+  id             Int      @id @default(autoincrement())
+  studentId      Int
+  classId        Int
+  academicYearId Int
+  enrolledAt     DateTime @default(now())
+  note           String?  @db.VarChar(255)
+
+  student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  class        Class        @relation(fields: [classId], references: [id])
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id])
+
+  @@index([studentId])
+  @@index([classId])
+  @@index([academicYearId])
+}
+
+// ─────────────────────────── Attendance ───────────────────────────
+
+model Attendance {
+  id           Int              @id @default(autoincrement())
+  studentId    Int
+  classId      Int
+  termId       Int?
+  date         DateTime         @db.Date
+  status       AttendanceStatus
+  arrivalTime  String?          @db.VarChar(5) // HH:mm
+  pickedUpBy   String?          @db.VarChar(150)
+  remark       String?          @db.VarChar(255)
+  recordedById Int?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  student    Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  class      Class   @relation(fields: [classId], references: [id])
+  term       Term?   @relation(fields: [termId], references: [id])
+  recordedBy User?   @relation("AttendanceRecordedBy", fields: [recordedById], references: [id])
+
+  @@unique([studentId, date])
+  @@index([classId, date])
+  @@index([termId])
+  @@index([date])
+}
+
+// ─────────────────────────── Activities ───────────────────────────
+
+model Activity {
+  id          Int              @id @default(autoincrement())
+  title       String           @db.VarChar(150)
+  description String?          @db.Text
+  category    ActivityCategory
+  date        DateTime         @db.Date
+  startTime   String?          @db.VarChar(5)
+  endTime     String?          @db.VarChar(5)
+  location    String?          @db.VarChar(150)
+  organizer   String?          @db.VarChar(150)
+  status      ActivityStatus   @default(PLANNED)
+  budget      Decimal?         @db.Decimal(12, 2)
+  actualCost  Decimal?         @db.Decimal(12, 2)
+  outcome     String?          @db.Text
+  termId      Int?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  deletedAt   DateTime?
+  createdById Int?
+
+  term         Term?                 @relation(fields: [termId], references: [id])
+  participants ActivityParticipant[]
+  photos       ActivityPhoto[]
+
+  @@index([date])
+  @@index([category])
+  @@index([status])
+  @@index([termId])
+  @@index([deletedAt])
+}
+
+model ActivityParticipant {
+  id         Int  @id @default(autoincrement())
+  activityId Int
+  studentId  Int?
+  classId    Int?
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  student  Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  class    Class?   @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@index([activityId])
+  @@index([studentId])
+  @@index([classId])
+}
+
+model ActivityPhoto {
+  id         Int      @id @default(autoincrement())
+  activityId Int
+  url        String   @db.VarChar(255)
+  caption    String?  @db.VarChar(255)
+  createdAt  DateTime @default(now())
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@index([activityId])
+}
+
+// ─────────────────────────── Inventory ───────────────────────────
+
+model InventoryCategory {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique @db.VarChar(100)
+  description String?   @db.VarChar(255)
+  // Items in categories flagged perishable get expiry warnings (food, medical)
+  perishable  Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  items InventoryItem[]
+}
+
+model Supplier {
+  id            Int       @id @default(autoincrement())
+  name          String    @db.VarChar(150)
+  contactPerson String?   @db.VarChar(150)
+  phone         String?   @db.VarChar(30)
+  email         String?   @db.VarChar(191)
+  address       String?   @db.VarChar(255)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  items     InventoryItem[]
+  movements StockMovement[]
+
+  @@index([name])
+}
+
+model InventoryItem {
+  id           Int           @id @default(autoincrement())
+  sku          String        @unique @db.VarChar(30)
+  name         String        @db.VarChar(150)
+  description  String?       @db.VarChar(255)
+  categoryId   Int
+  unit         ItemUnit      @default(PCS)
+  quantity     Int           @default(0)
+  reorderLevel Int           @default(0)
+  unitCost     Decimal       @default(0) @db.Decimal(12, 2)
+  location     String?       @db.VarChar(100)
+  condition    ItemCondition @default(NEW)
+  expiryDate   DateTime?     @db.Date
+  supplierId   Int?
+  image        String?       @db.VarChar(255)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  deletedAt    DateTime?
+  createdById  Int?
+
+  category  InventoryCategory @relation(fields: [categoryId], references: [id])
+  supplier  Supplier?         @relation(fields: [supplierId], references: [id])
+  movements StockMovement[]
+
+  @@index([categoryId])
+  @@index([supplierId])
+  @@index([name])
+  @@index([deletedAt])
+}
+
+model StockMovement {
+  id            Int          @id @default(autoincrement())
+  itemId        Int
+  type          MovementType
+  // Always positive; the type decides whether stock goes up or down.
+  // ADJUSTMENT stores the signed delta in `quantity` (may be negative).
+  quantity      Int
+  balanceAfter  Int
+  unitCost      Decimal?     @db.Decimal(12, 2)
+  reason        String?      @db.VarChar(255)
+  reference     String?      @db.VarChar(100)
+  issuedTo      String?      @db.VarChar(150)
+  issuedClassId Int?
+  supplierId    Int?
+  date          DateTime     @db.Date
+  userId        Int?
+  createdAt     DateTime     @default(now())
+
+  item     InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  user     User?         @relation(fields: [userId], references: [id])
+  supplier Supplier?     @relation(fields: [supplierId], references: [id])
+
+  @@index([itemId])
+  @@index([date])
+  @@index([type])
+  @@index([issuedClassId])
+}
+
+// ─────────────────────────── Library ───────────────────────────
+
+model BookCategory {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique @db.VarChar(100)
+  description String?   @db.VarChar(255)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  books Book[]
+}
+
+model Book {
+  id              Int       @id @default(autoincrement())
+  title           String    @db.VarChar(200)
+  author          String?   @db.VarChar(150)
+  isbn            String?   @db.VarChar(20)
+  publisher       String?   @db.VarChar(150)
+  publishedYear   Int?
+  language        String?   @default("English") @db.VarChar(40)
+  ageLevel        String?   @db.VarChar(30)
+  categoryId      Int
+  coverImage      String?   @db.VarChar(255)
+  shelfLocation   String?   @db.VarChar(50)
+  totalCopies     Int       @default(0)
+  availableCopies Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+  createdById     Int?
+
+  category BookCategory @relation(fields: [categoryId], references: [id])
+  copies   BookCopy[]
+
+  @@index([categoryId])
+  @@index([title])
+  @@index([isbn])
+  @@index([deletedAt])
+}
+
+model BookCopy {
+  id        Int           @id @default(autoincrement())
+  bookId    Int
+  copyCode  String        @unique @db.VarChar(20)
+  condition CopyCondition @default(NEW)
+  status    CopyStatus    @default(AVAILABLE)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  deletedAt DateTime?
+
+  book  Book       @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  loans BookLoan[]
+
+  @@index([bookId])
+  @@index([status])
+}
+
+model BookLoan {
+  id              Int            @id @default(autoincrement())
+  bookCopyId      Int
+  studentId       Int?
+  borrowerName    String?        @db.VarChar(150)
+  issuedAt        DateTime       @default(now())
+  dueDate         DateTime       @db.Date
+  returnedAt      DateTime?
+  status          LoanStatus     @default(BORROWED)
+  fine            Decimal        @default(0) @db.Decimal(12, 2)
+  finePaid        Boolean        @default(false)
+  returnCondition CopyCondition?
+  remark          String?        @db.VarChar(255)
+  issuedById      Int?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  bookCopy BookCopy @relation(fields: [bookCopyId], references: [id], onDelete: Cascade)
+  student  Student? @relation(fields: [studentId], references: [id])
+  issuedBy User?    @relation("LoanIssuedBy", fields: [issuedById], references: [id])
+
+  @@index([bookCopyId])
+  @@index([studentId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+// ─────────────────────────── System ───────────────────────────
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  title     String   @db.VarChar(150)
+  message   String   @db.VarChar(500)
+  type      String   @default("INFO") @db.VarChar(30) // INFO | LOW_STOCK | EXPIRY | OVERDUE | SYSTEM
+  link      String?  @db.VarChar(255)
+  // Deduplication key so scheduled jobs don't spam the same alert
+  dedupeKey String?  @db.VarChar(120)
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, isRead])
+}
+
+model AuditLog {
+  id        Int         @id @default(autoincrement())
+  userId    Int?
+  action    AuditAction
+  entity    String      @db.VarChar(60)
+  entityId  String?     @db.VarChar(40)
+  oldValues Json?
+  newValues Json?
+  ip        String?     @db.VarChar(64)
+  userAgent String?     @db.VarChar(255)
+  createdAt DateTime    @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([entity, entityId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// ─────────────────────────── Courses & teachers ───────────────────────────
+
+model Course {
+  id          Int         @id @default(autoincrement())
+  name        String      @db.VarChar(100)
+  code        String      @unique @db.VarChar(20)
+  description String?     @db.VarChar(255)
+  level       ClassLevel? // null = taught at both levels
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  deletedAt   DateTime?
+
+  assignments TeacherAssignment[]
+  assessments Assessment[]
+
+  @@index([deletedAt])
+}
+
+// A teacher teaches a course to a class.
+model TeacherAssignment {
+  id        Int      @id @default(autoincrement())
+  teacherId Int
+  courseId  Int
+  classId   Int
+  createdAt DateTime @default(now())
+
+  teacher User   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  class   Class  @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, courseId, classId])
+  @@index([classId])
+  @@index([courseId])
+}
+
+// ─────────────────────────── Marks ───────────────────────────
+
+/// One marked activity (classwork, test, exam…) for a class and course in a term. Every assessment counts.
+model Assessment {
+  id          Int            @id @default(autoincrement())
+  title       String         @db.VarChar(120)
+  type        AssessmentType
+  date        DateTime       @db.Date
+  maxScore    Float
+  description String?        @db.VarChar(255)
+  termId      Int
+  classId     Int
+  courseId    Int
+  createdById Int?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  deletedAt   DateTime?
+
+  term      Term   @relation(fields: [termId], references: [id])
+  class     Class  @relation(fields: [classId], references: [id])
+  course    Course @relation(fields: [courseId], references: [id])
+  createdBy User?  @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  marks     Mark[]
+
+  @@index([classId, termId])
+  @@index([courseId])
+  @@index([deletedAt])
+}
+
+/// A pupil's mark on one assessment. `absent` = excused: the assessment is left out of that pupil's total.
+model Mark {
+  id           Int      @id @default(autoincrement())
+  assessmentId Int
+  studentId    Int
+  score        Float?
+  absent       Boolean  @default(false)
+  remark       String?  @db.VarChar(255)
+  recordedById Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  student    Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  recordedBy User?      @relation(fields: [recordedById], references: [id], onDelete: SetNull)
+
+  @@unique([assessmentId, studentId])
+  @@index([studentId])
+}

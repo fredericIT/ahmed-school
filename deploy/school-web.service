@@ -1,0 +1,19 @@
+# School system web app (Next.js standalone build). Installed by scripts/deploy.sh.
+[Unit]
+Description=School system web app (Next.js)
+After=school-api.service
+StartLimitIntervalSec=0
+
+[Service]
+WorkingDirectory=@ROOT@/frontend/.next/standalone
+Environment=NODE_ENV=production
+Environment=PORT=3000
+# Listen on the school network so teachers can use other computers and phones.
+Environment=HOSTNAME=0.0.0.0
+Environment=BACKEND_URL=@BACKEND_URL@
+ExecStart=@NODE@ server.js
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target

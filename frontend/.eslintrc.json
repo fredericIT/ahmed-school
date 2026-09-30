@@ -1,0 +1,14 @@
+{
+  "extends": [
+    "next/core-web-vitals",
+    "prettier"
+  ],
+  "rules": {
+    "@typescript-eslint/no-explicit-any": "error",
+    "react/no-unescaped-entities": "off",
+    "@next/next/no-img-element": "off"
+  },
+  "plugins": [
+    "@typescript-eslint"
+  ]
+}

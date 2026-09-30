@@ -1,0 +1,8 @@
+# Nightly backup of the database and uploaded photos. Installed by scripts/deploy.sh.
+[Unit]
+Description=School system backup
+
+[Service]
+Type=oneshot
+EnvironmentFile=@ENV_FILE@
+ExecStart=@ROOT@/scripts/backup.sh

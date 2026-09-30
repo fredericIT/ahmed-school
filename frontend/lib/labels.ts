@@ -1,0 +1,128 @@
+import { msg, translate } from './locale';
+import { titleCase } from './utils';
+
+/** Display names for the code values the API sends (statuses, roles, categories, audit actions). */
+const LABELS: Record<string, string> = {
+  // roles
+  SUPER_ADMIN: msg('Super admin'),
+  ADMIN: msg('Admin'),
+  TEACHER: msg('Teacher'),
+  // levels and grades
+  NURSERY: msg('Nursery'),
+  PRIMARY: msg('Primary'),
+  BABY: msg('Baby class'),
+  MIDDLE: msg('Middle class'),
+  TOP: msg('Top class'),
+  P1: msg('P1'),
+  P2: msg('P2'),
+  MALE: msg('Boy'),
+  FEMALE: msg('Girl'),
+  // students
+  ACTIVE: msg('Active'),
+  INACTIVE: msg('Inactive'),
+  PENDING: msg('Pending activation'),
+  TRANSFERRED: msg('Transferred'),
+  GRADUATED: msg('Graduated'),
+  WITHDRAWN: msg('Withdrawn'),
+  // attendance
+  PRESENT: msg('Present'),
+  ABSENT: msg('Absent'),
+  LATE: msg('Late'),
+  EXCUSED: msg('Excused'),
+  SICK: msg('Sick'),
+  // activities
+  SPORTS: msg('Sports'),
+  TRIP: msg('Trip'),
+  CELEBRATION: msg('Celebration'),
+  CULTURAL: msg('Cultural'),
+  ACADEMIC: msg('Academic'),
+  HEALTH: msg('Health'),
+  PARENT_MEETING: msg('Parent meeting'),
+  OTHER: msg('Other'),
+  PLANNED: msg('Planned'),
+  ONGOING: msg('Ongoing'),
+  COMPLETED: msg('Completed'),
+  CANCELLED: msg('Cancelled'),
+  // stock
+  PCS: msg('pcs'),
+  BOX: msg('box'),
+  KG: msg('kg'),
+  LITRE: msg('litre'),
+  PACK: msg('pack'),
+  IN: msg('Stock in'),
+  OUT: msg('Stock out'),
+  ADJUSTMENT: msg('Adjustment'),
+  RETURN: msg('Return'),
+  LOW: msg('Low'),
+  EXPIRED: msg('Expired'),
+  EXPIRING: msg('Expiring'),
+  OK: msg('OK'),
+  // conditions
+  NEW: msg('New'),
+  GOOD: msg('Good'),
+  FAIR: msg('Fair'),
+  POOR: msg('Poor'),
+  DAMAGED: msg('Damaged'),
+  // library
+  AVAILABLE: msg('Available'),
+  BORROWED: msg('Borrowed'),
+  RETURNED: msg('Returned'),
+  OVERDUE: msg('Overdue'),
+  LOST: msg('Lost'),
+  // assessments
+  CLASSWORK: msg('Classwork'),
+  HOMEWORK: msg('Homework'),
+  QUIZ: msg('Quiz'),
+  TEST: msg('Test'),
+  PROJECT: msg('Project'),
+  EXAM: msg('Exam'),
+  // audit actions
+  CREATE: msg('Create'),
+  UPDATE: msg('Update'),
+  DELETE: msg('Delete'),
+  RESTORE: msg('Restore'),
+  LOGIN: msg('Sign in'),
+  LOGOUT: msg('Sign out'),
+  LOGIN_FAILED: msg('Failed sign-in'),
+  PASSWORD_CHANGE: msg('Password change'),
+  PASSWORD_RESET: msg('Password reset'),
+  STATUS_CHANGE: msg('Status change'),
+  PROMOTE: msg('Promotion'),
+  IMPORT: msg('Import'),
+  STOCK_MOVEMENT: msg('Stock movement'),
+  ISSUE: msg('Issue'),
+  // notifications
+  INFO: msg('Information'),
+  LOW_STOCK: msg('Low stock'),
+  EXPIRY: msg('Expiry'),
+  SYSTEM: msg('System'),
+  // audit log entities
+  AcademicYear: msg('Academic year'),
+  Activity: msg('Activity'),
+  ActivityPhoto: msg('Activity photo'),
+  Assessment: msg('Assessment'),
+  Attendance: msg('Attendance'),
+  Book: msg('Book'),
+  BookCategory: msg('Book category'),
+  BookCopy: msg('Book copy'),
+  BookLoan: msg('Book loan'),
+  Class: msg('Class'),
+  Course: msg('Course'),
+  Guardian: msg('Guardian'),
+  Holiday: msg('Holiday'),
+  InventoryCategory: msg('Inventory category'),
+  InventoryItem: msg('Inventory item'),
+  Marks: msg('Marks'),
+  SchoolSettings: msg('School settings'),
+  Student: msg('Student'),
+  Supplier: msg('Supplier'),
+  Teacher: msg('Teacher'),
+  Term: msg('Term'),
+  User: msg('User'),
+};
+
+/** The translated name of a code value, e.g. `enumLabel('PARENT_MEETING')` → "Parent meeting" / "Réunion de parents". */
+export function enumLabel(value: string | null | undefined): string {
+  if (!value) return '';
+  return translate(LABELS[value] ?? titleCase(value));
+}

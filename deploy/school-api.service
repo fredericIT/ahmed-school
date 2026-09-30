@@ -1,0 +1,16 @@
+# School system API. Installed by scripts/deploy.sh (placeholders filled in there).
+[Unit]
+Description=School system API (Express)
+After=network-online.target
+# Keep retrying forever: at boot MySQL may start after this service.
+StartLimitIntervalSec=0
+
+[Service]
+WorkingDirectory=@ROOT@/backend
+EnvironmentFile=@ENV_FILE@
+ExecStart=@NODE@ dist/server.js
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target
